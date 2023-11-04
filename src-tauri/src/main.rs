@@ -94,11 +94,41 @@ let (reader, writer) = tcp_stream.into_split();
         .setup(|app| {
             let window = app.get_window("main").unwrap();
 
+            
+
 
             let window = Arc::new(Mutex::new(window)); // Wrap the window
 
+            let window_clone = window.clone();
+            let app_state = AppState { window: window_clone.clone() }; // Clone the window before the async move block
+
+            tauri::async_runtime::spawn({
+                let window = window.clone();
+                async move {
+                    let window_clone_for_closure = window_clone.clone();
+                    let window_guard = window.lock().await;
+                    window_guard.listen("ready", move |_event| {
+                        println!("Received ready event");
+                        
+                        let window_clone = Arc::clone(&window_clone_for_closure);
+                        tauri::async_runtime::spawn(async move {
+                            while zones.get().unwrap().len() == 0 {
+                                //wait for zones to be populated
+                                tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+                            }
+                            println!("Zones Length: {}", zones.get().unwrap().len());
+                            // your code here
+                            let window_guard = window_clone.lock().await;
+                            if let Err(e) = window_guard.emit("zones", zones.get().unwrap()) {
+                                println!("Error emitting event: {}", e);
+                            }
+                        });
+                    });
+                }
+            });
+
             // Store the window in the application state
-            let app_state = AppState { window: window.clone() }; // Clone the Arc
+          
 
             // Add the AppState to the application's managed state
             app.manage(app_state.clone()); // Clone the AppState, which is now cloneable
@@ -108,6 +138,8 @@ let (reader, writer) = tcp_stream.into_split();
                 read_line(app_state).await;
             });
             get_zones();
+            
+            
 
             Ok(())
         })
@@ -157,6 +189,7 @@ fn get_zones() {
         let mut line = String::new();
 
         loop {
+            line.clear();
             let mut bytes_read = stream.read( &mut buffer).expect("Failed to read from the server");
             line.push_str(std::str::from_utf8(&buffer[..bytes_read]).expect("Failed to convert bytes to string"));
 
@@ -172,6 +205,8 @@ fn get_zones() {
                     deprecated_override_id: parts[7].to_string(),
                 };
 
+                
+
                 tempzones.push(zone);
             }
 
@@ -184,7 +219,12 @@ fn get_zones() {
 
         }
 
+        //sort zones by zone_id
+        tempzones.sort_by(|a, b| a.zone_id.parse::<i32>().unwrap().cmp(&b.zone_id.parse::<i32>().unwrap()));
+
     zones.set(tempzones).expect("Failed to set zones");
+
+    
 
 }
 
@@ -202,6 +242,23 @@ async fn send_heartbeat() -> Result<String, String> {
     }
 
 
+}
+
+#[tauri::command]
+async fn update_zones(zonesInput: Vec<Zone>) -> Result<String,String>{
+    if let Some(tcp_stream) = GLOBAL_TCP_STREAM_WRITER.get() {
+        let mut writer = tcp_stream.lock().await;  // this line has been changed
+        for zone in zonesInput {
+            let payload = format!("U00 {} {} {} {} {} {}\r", zone.zone_id, zone.name, zone.week_profile_id, zone.temp_comfort_c, zone.temp_eco_c, zone.override_allowed);
+            writer.write(payload.as_bytes()).await.map_err(|e| e.to_string())?;
+        }
+    } else {
+        return Err("Stream is not available".to_string());
+    }
+
+    Ok("Zones updated".to_string())
+
+        
 }
 
 #[tauri::command]
@@ -234,8 +291,30 @@ async fn read_line(app_state: AppState) {
                             // to the protocol you're implementing.
 
                             let window_guard = app_state.window.lock().await;
-                            if let Err(e) = window_guard.emit("heartbeat", Some(line)) {
-                                println!("Error emitting heartbeat: {}", e);
+                            if line.trim().contains("OK") {
+                                if let Err(e) = window_guard.emit("heartbeat", line.trim()) {
+                                    println!("Error emitting event: {}", e);
+                                }
+                                
+                            }
+                            if line.trim().contains("V00") {
+                                let parts = line.trim().split(" ").collect::<Vec<&str>>();
+                                let zone = Zone {
+                                    zone_id: parts[1].to_string(),
+                                    name: parts[2].to_string(),
+                                    week_profile_id: parts[3].to_string(),
+                                    temp_comfort_c: parts[4].to_string(),
+                                    temp_eco_c: parts[5].to_string(),
+                                    override_allowed: parts[6].to_string(),
+                                    deprecated_override_id: parts[7].to_string(),
+                                };
+
+                                println!("Received: {:?}", zone);
+
+                                if let Err(e) = window_guard.emit("zone", zone) {
+                                    println!("Error emitting event: {}", e);
+                                }
+                                
                             }
                         }
                         Err(e) => {

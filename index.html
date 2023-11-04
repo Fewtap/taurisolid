@@ -7,7 +7,25 @@
     <title>Vite + Solid + TS</title>
   </head>
   <body>
+    
+    <div id="title-bar">
+      <div id="title">Temperatur</div>
+      <div id="window-controls">
+        <button id="min-btn">minimize</button>
+        <button id="max-btn">maximize</button>
+        <button id="close-btn">close</button>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
+    <style>
+      #title-bar{
+        background-color: #ffffff;
+        z-index: 2;
+        height:30px;
+        position: relative;
+        -webkit-app-region: drag;
+      }
+    </style>
   </body>
 </html>

@@ -56,10 +56,11 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 600,
+        "height": 1080,
         "resizable": true,
         "title": "Temperature Hub",
-        "width": 800
+        "width": 1920,
+        "decorations": false
       }
     ]
   }

@@ -1,27 +1,228 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+:root{
+  --primary-color: #0582CA;
+  --secondary-color: #006494;
+  --highlight-color: #00A6FB;
+  --background-dark-color: #051923;
+  --background-dark-grey: #191D2B;
+  --border-color: #2e344e;
+}
+
+body,html{
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--background-dark-color);
+  color: white;
+
+}
+
+
+.header{
+    background-color: var(--background-dark-grey);
+    min-height: 10vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    /*just one row*/
+    grid-template-rows: 1fr;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    color: white;
+    font-size: calc(10px + 2vmin);
+    padding: 0 2rem;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    z-index: 1;
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    transition: all 0.5s ease-in-out;
+}
+
+.title{
+  grid-column: 2/2;
+  max-width: 33vw;
+  
+}
+
+.controls{
+  grid-column: 1/1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: start;
+  gap: 20px;
+  max-width: 33vw;
+  flex-wrap: wrap;
+}
+
+.menuButton{
+  background-color: var(--secondary-color);
+  color: antiquewhite;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  transition: all 0.2s ease-in-out;
+}
+
+.menuButton:hover{
+  background-color: var(--highlight-color);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transform: scale(1.1);
+  transition: all 0.1s ease-in-out;
+  border-radius: 15px;
+}
+
+.selected{
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.container{
+  height: 100vh;
+  width: 100vw;
+}
+
+.right{
+  grid-column: 3/3 !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: start;
+  gap: 20px;
+  max-width: 33vw;
+  flex-wrap: wrap;
+
+}
+
+
+
+@keyframes inAnimation{
+  0%{
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  100%{
+    opacity: 1;
+    transform: translateY(0%);
+  }
+  
+}
+
+.grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  justify-content: center;
+  max-height: 70vh;
+  max-width: 80%;
+  min-height: 80%;
+  min-width: 80%;
+  margin-inline:auto;
+  overflow: auto;
+  background-color: var(--background-dark-grey);  
+  gap: 10px;
+  padding: 10px;
+}
+
+.menu{
+  animation: inAnimation 0.5s ease-in-out;
+  min-width: 100vw;
+  min-height: 50vh;
+  
+}
+
+.titlebar {
+  height: 30px;
+  background: #329ea3;
+  user-select: none;
+  display: flex;
+  justify-content: flex-end;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.titlebar-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  height: 30px;
+}
+.titlebar-button:hover {
+  background: #5bbec3;
+}
+
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-dark-grey);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-color);
+}
+
+h1{
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.solid:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.rooms{
+  display: flex;
+  min-width: 40vw;
+  min-height: 60vh;
+  justify-content: center;
+  align-items: center;
+  
 }
 
-.card {
-  padding: 2em;
+.doublecontainer{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+ 
+
 }
 
-.read-the-docs {
-  color: #888;
+.roominput{
+  min-width: 40vw;
+  min-height: 60vh;
+  background-color: var(--background-dark-grey);
+  padding: 20px;
+  resize: none;
+  border: 1px solid var(--secondary-color);
+  transition: all 0.2s ease-in-out;
+  color: antiquewhite;
+}
+
+.roominput::placeholder{
+  color: antiquewhite;
+}
+
+.roominput:focus{
+  outline: 1px solid var(--highlight-color);
+  border-radius: 20px;
+  transition: all 0.2s ease-in-out;
 }
