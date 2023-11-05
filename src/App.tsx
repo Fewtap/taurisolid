@@ -5,16 +5,30 @@ import {listen, emit} from "@tauri-apps/api/event";
 import {IRoom, IZone} from "./interfaces.ts";
 import { createSignal, createEffect, For } from 'solid-js';
 import './card.css'
-import { text } from 'stream/consumers';
+import { createContext, useContext } from 'solid-js';
+import { appWindow } from '@tauri-apps/api/window';
 
+
+type RoomContextType = {
+  selectedRooms: IRoom[],
+  setSelectedRooms: (rooms: IRoom[]) => void
+}
+
+const RoomContext = createContext<RoomContextType>();
 
 function App() {
+
+  
+  document?.getElementById('min-btn')?.addEventListener('click', () => appWindow.minimize())
+document?.getElementById('max-btn')?.addEventListener('click', () => appWindow.toggleMaximize())
+document?.getElementById('close-btn')?.addEventListener('click', () => appWindow.close())
 
   const [zones, setZones] = createSignal<IZone[]>([])
   const [rooms , setRooms] = createSignal<IRoom[]>([])
   const [secondaryMenu, setSecondaryMenu] = createSignal<boolean>(false)
   const [temperature, setTemperature] = createSignal<number>(22)
   const [allRooms, setAllRooms] = createSignal<boolean>(true)
+  const [selectedRooms, setSelectedRooms] = createSignal<IRoom[]>([])
 
     listen("heartbeat", (event) => {
         console.log(event.payload)
@@ -49,6 +63,20 @@ function App() {
     });
 
   setInterval(sendheartbeat, 14000)
+
+    function handleSelectRoom(room: IRoom, selected: boolean){
+      if(selected){
+        //remove room from selectedRooms
+        let newrooms = selectedRooms().filter((r) => r != room)
+        setSelectedRooms(newrooms)
+      }
+      else{
+        //add room to selectedRooms
+        setSelectedRooms([...selectedRooms(), room])
+      }
+    }
+
+
 
 
   function sendheartbeat(){
@@ -108,6 +136,7 @@ function App() {
   
 
   return (
+    <RoomContext.Provider value={{selectedRooms,setSelectedRooms}}>
     <div class="container">
       <div class='header'>
         <div class="controls">
@@ -159,15 +188,16 @@ function App() {
       </div>
       {secondaryMenu() ? <SecondaryMenu zones={zones()}/> : <MainMenu rooms={rooms()} textchangevent={CollectRooms}/>}
     </div>
+    </RoomContext.Provider>
     
       
   )
 }
 
 function RoomCard(props: {room: IRoom}) {
-
+  const {selectedRooms, setSelectedRooms} = useContext(RoomContext)
   return (
-    <div class="card room">
+    <div class={`card room ${}`} onclick={() => props.selectFunction()}>
       <h1>{props.room.room_number}</h1>
       <h2>Varmekabel: {props.room.varmekabel.temp_comfort_c}</h2>
       <h2>Varmeovn: {props.room.varmeovn.temp_comfort_c}</h2>
@@ -184,7 +214,7 @@ function ZoneCard(props: {zone: IZone}) {
   )
 }
 
-function MainMenu(props: {rooms: IRoom[], textchangevent: (e: Event) => void}) {
+function MainMenu(props: {rooms: IRoom[], selectedrooms: IRoom[] ,textchangevent: (e: Event) => void, handleSelectRoom: (room: IRoom, selected: boolean) => void}) {
   return (
     <div class="menu mainMenu">
       <h1>Rom</h1>
@@ -193,7 +223,7 @@ function MainMenu(props: {rooms: IRoom[], textchangevent: (e: Event) => void}) {
         <div class='grid rooms'>
           <For each={props.rooms}>
             {(room) => (
-              <RoomCard room={room}/>
+              <RoomCard room={room} selected={props.selectedrooms.includes(room) ? true : false } selectFunction={props.handleSelectRoom}/>
             )}
           </For>
           </div>

@@ -8,19 +8,82 @@
   </head>
   <body>
     
-    <div id="title-bar">
+    <div id="title-bar" data-tauri-drag-region>
       <div id="title">Temperatur</div>
       <div id="window-controls">
-        <button id="min-btn">minimize</button>
-        <button id="max-btn">maximize</button>
-        <button id="close-btn">close</button>
+        <button id="min-btn">
+          <img class="icon" src="./icons/minimize-sign.png"/>
+        </button>
+        <button id="max-btn">
+          <img class="icon" src="./icons/maximize.png"/></button>
+        <button id="close-btn"><img class="icon" src="./icons/close.png"/></button>
+        
       </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
     <style>
+      :root{
+        --title-bar-height: 30px;
+        --window-controls-width: 84px;
+        --icon-size: 20px;
+      }
+      #min-btn, #max-btn, #close-btn{
+        width: var(--icon-size);
+        height: var(--icon-size);
+        padding: 0px;
+        
+        margin: 0px;
+        border: none;
+        outline: none;
+        background: transparent;
+        cursor: pointer;
+        transition: background-color 0.3s ease-in-out;
+      }
+
+      #min-btn:hover, #max-btn:hover{
+        background-color: #727171;
+        transition: background-color 0.3s ease-in-out;
+      }
+
+      #close-btn:hover{
+        background-color: #e81123;
+        transition: background-color 0.3s ease-in-out;
+      }
+
       #title-bar{
-        background-color: #ffffff;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #title{
+        margin-left: 10px;
+        color: white;
+        font-size: 12px;}
+
+      #window-controls{
+        
+        
+        display: flex;
+        flex-direction: row;
+        justify-content: end;
+        margin-right: 10px;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .icon{
+        width: var(--icon-size);
+        height: var(--icon-size);
+        color: white;
+        /*change color of png*/
+        filter: invert(1);
+      }
+
+      #title-bar{
+        background-color: #3f3e3e;
         z-index: 2;
         height:30px;
         position: relative;
