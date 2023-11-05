@@ -89,8 +89,8 @@ body,html{
 }
 
 .container{
-  height: 100vh;
-  width: 100vw;
+  height: 95vh;
+  width: 95vw;
 }
 
 .right{
@@ -189,10 +189,12 @@ h1{
 
 .rooms{
   display: flex;
+  flex-wrap: wrap;
   min-width: 40vw;
+  max-width: 40vw;
   min-height: 60vh;
-  justify-content: center;
-  align-items: center;
+  gap: 10px;
+  
   
 }
 

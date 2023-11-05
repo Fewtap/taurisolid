@@ -7,14 +7,24 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "solidtauri",
+    "productName": "Temperature Controls",
     "version": "0.1.0"
   },
   "tauri": {
     "allowlist": {
+      
       "all": false,
+      "dialog": {
+        "all": true,
+        "ask": true,
+        "confirm": true,
+        "message": true,
+        "open": true,
+        "save": true
+      },
       "window": {
         "all": true
+        
         
       }
     },
@@ -33,7 +43,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "com.marko.lol",
       "longDescription": "",
       "macOS": {
         "entitlements": null,

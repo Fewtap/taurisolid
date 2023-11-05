@@ -1,8 +1,14 @@
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
+
 use std::panic::panic_any;
-use tauri::{Manager, Window};
+use once_cell::sync::Lazy;
+use tauri::Manager;
 use tokio::net::TcpStream;
 use chrono;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::io::{Read, Write};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -14,7 +20,7 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 static GLOBAL_TCP_STREAM_READER: OnceCell<Arc<Mutex<OwnedReadHalf>>> = OnceCell::new();
 static GLOBAL_TCP_STREAM_WRITER: OnceCell<Arc<Mutex<OwnedWriteHalf>>> = OnceCell::new();
 
-static zones: OnceCell<Vec<Zone>> = OnceCell::new();
+static ZONES: Lazy<Arc<Mutex<Vec<Zone>>>> = Lazy::new(|| Arc::new(Mutex::new(Vec::new())));
 
 const IP: &str = "192.168.50.167";
 const PORT: &str = "27779";
@@ -66,7 +72,7 @@ async fn main() {
 
 
     loop {
-        let mut bytes_read = tcp_stream.read( &mut buffer).await.expect("Failed to read from the server");
+        let bytes_read = tcp_stream.read( &mut buffer).await.expect("Failed to read from the server");
         line.push_str(std::str::from_utf8(&buffer[..bytes_read]).expect("Failed to convert bytes to string"));
 
         if line.contains("HELLO") {
@@ -78,7 +84,7 @@ async fn main() {
 
     }
 
-
+    tauri::async_runtime::spawn(get_zones());
 
 
 
@@ -112,14 +118,12 @@ let (reader, writer) = tcp_stream.into_split();
                         
                         let window_clone = Arc::clone(&window_clone_for_closure);
                         tauri::async_runtime::spawn(async move {
-                            while zones.get().unwrap().len() == 0 {
-                                //wait for zones to be populated
-                                tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-                            }
-                            println!("Zones Length: {}", zones.get().unwrap().len());
+                           
+                            
+                            println!("Zones Length: {}", ZONES.lock().await.clone().len());
                             // your code here
                             let window_guard = window_clone.lock().await;
-                            if let Err(e) = window_guard.emit("zones", zones.get().unwrap()) {
+                            if let Err(e) = window_guard.emit("zones", ZONES.lock().await.clone()) {
                                 println!("Error emitting event: {}", e);
                             }
                         });
@@ -137,13 +141,13 @@ let (reader, writer) = tcp_stream.into_split();
             tauri::async_runtime::spawn(async move {
                 read_line(app_state).await;
             });
-            get_zones();
+            
             
             
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![send_heartbeat])
+        .invoke_handler(tauri::generate_handler![send_heartbeat,update_zones])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 
@@ -154,7 +158,7 @@ let (reader, writer) = tcp_stream.into_split();
 
 
 
-fn get_zones() {
+async fn get_zones() {
 
    let mut stream = std::net::TcpStream::connect(format!("{}:{}", IP, PORT)).expect("Failed to connect to the server");
     let current_time_string = chrono::Local::now().format("%Y%m%d%H%M%S").to_string();
@@ -168,7 +172,7 @@ fn get_zones() {
 
 
         loop {
-            let mut bytes_read = stream.read( &mut buffer).expect("Failed to read from the server");
+            let bytes_read = stream.read( &mut buffer).expect("Failed to read from the server");
             line.push_str(std::str::from_utf8(&buffer[..bytes_read]).expect("Failed to convert bytes to string"));
 
             if line.contains("HELLO") {
@@ -190,7 +194,7 @@ fn get_zones() {
 
         loop {
             line.clear();
-            let mut bytes_read = stream.read( &mut buffer).expect("Failed to read from the server");
+            let bytes_read = stream.read( &mut buffer).expect("Failed to read from the server");
             line.push_str(std::str::from_utf8(&buffer[..bytes_read]).expect("Failed to convert bytes to string"));
 
             if line.trim().contains("H01") {
@@ -207,10 +211,15 @@ fn get_zones() {
 
                 
 
+                
+                
+                
+                
+
                 tempzones.push(zone);
             }
 
-            if(line.trim().contains("H02")) {
+            if line.trim().contains("H05") {
                 println!("Received: {}", line);
                 break;
             }
@@ -222,7 +231,7 @@ fn get_zones() {
         //sort zones by zone_id
         tempzones.sort_by(|a, b| a.zone_id.parse::<i32>().unwrap().cmp(&b.zone_id.parse::<i32>().unwrap()));
 
-    zones.set(tempzones).expect("Failed to set zones");
+        *ZONES.lock().await = tempzones;
 
     
 
@@ -245,18 +254,18 @@ async fn send_heartbeat() -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn update_zones(zonesInput: Vec<Zone>) -> Result<String,String>{
+async fn update_zones(zones_input: Vec<Zone>, temperature: &str) -> Result<String,String>{
     if let Some(tcp_stream) = GLOBAL_TCP_STREAM_WRITER.get() {
         let mut writer = tcp_stream.lock().await;  // this line has been changed
-        for zone in zonesInput {
-            let payload = format!("U00 {} {} {} {} {} {}\r", zone.zone_id, zone.name, zone.week_profile_id, zone.temp_comfort_c, zone.temp_eco_c, zone.override_allowed);
+        for zone in zones_input {
+            let payload = format!("U00 {} {} {} {} {} {} {}\r", zone.zone_id, zone.name, zone.week_profile_id, temperature, temperature, zone.override_allowed, zone.deprecated_override_id);
             writer.write(payload.as_bytes()).await.map_err(|e| e.to_string())?;
         }
     } else {
         return Err("Stream is not available".to_string());
     }
 
-    Ok("Zones updated".to_string())
+    Ok("Zones updating".to_string())
 
         
 }
@@ -311,11 +320,14 @@ async fn read_line(app_state: AppState) {
 
                                 println!("Received: {:?}", zone);
 
+                                UpdateStaticZones(zone.clone()).await;
+
                                 if let Err(e) = window_guard.emit("zone", zone) {
                                     println!("Error emitting event: {}", e);
                                 }
                                 
                             }
+
                         }
                         Err(e) => {
                             // Handle invalid UTF-8 data here
@@ -334,4 +346,16 @@ async fn read_line(app_state: AppState) {
     } else {
         panic_any("Stream is not available");
     }
+}
+
+async fn UpdateStaticZones(zone: Zone) {
+    let mut tempstaticzones: Vec<Zone> = ZONES.lock().await.clone();
+    let index = tempstaticzones.iter().position(|x| x.zone_id == zone.zone_id).unwrap();
+    tempstaticzones[index] = zone;
+
+    
+
+    
+
+    *ZONES.lock().await = tempstaticzones;
 }

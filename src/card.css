@@ -9,28 +9,28 @@
     max-width: 15vw;
     min-width: 15vw;
     max-height: 10vh;
-    font-size: 10px;
+    font-size: 0.5em;
     justify-self: center;
     background-color: var(--secondary-color);
     transition: all 0.2s ease-in-out;
     user-select: none;
 }
 
-.card:hover{
+.selectable:hover{
     background-color: var(--highlight-color)!important;
     cursor: pointer;
     transform: scale(1.02);
     transition: all 0.2s ease-in-out;
 }
 
-.card:active{
+.selectable:active{
     background-color: var(--primary-color)!important;
     cursor: pointer;
     transform: scale(1.2);
     transition: all 0.2s ease-in-out;
 }
 
-.card .selected{
+.selected{
     background-color: var(--highlight-color)!important;
     cursor: pointer;
     transform: scale(1.02);
@@ -38,16 +38,50 @@
 }
 
 .room{
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
+    
     gap: 20px;
     padding: 30px;
     border-radius: 10px;
     
     max-height: 10vh;
-    font-size: 10px;
+    min-width: 7.5vw;
+    max-width: 7.5vw;
     justify-self: center;
     background-color: var(--secondary-color);
+}
+
+.temperaturetext{
+    animation: slideIn 0.5s ease-in-out;
+}
+
+.tempdisplaycontainer{
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+}
+
+
+
+/*create a slide and fade out animation*/
+@keyframes slideOut {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(10%);
+        opacity: 0;
+    }
+}
+
+/*create a slide and fade in animation*/
+@keyframes slideIn {
+    from {
+        transform: translateY(10%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
