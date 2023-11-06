@@ -1,7 +1,7 @@
-#![cfg_attr(
+/*#![cfg_attr(
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
-)]
+)]*/
 
 use std::panic::panic_any;
 use once_cell::sync::Lazy;
@@ -84,7 +84,7 @@ async fn main() {
 
     }
 
-    tauri::async_runtime::spawn(get_zones());
+    
 
 
 
@@ -119,7 +119,7 @@ let (reader, writer) = tcp_stream.into_split();
                         let window_clone = Arc::clone(&window_clone_for_closure);
                         tauri::async_runtime::spawn(async move {
                            
-                            
+                            let _ = tauri::async_runtime::spawn(get_zones()).await;
                             println!("Zones Length: {}", ZONES.lock().await.clone().len());
                             // your code here
                             let window_guard = window_clone.lock().await;
@@ -198,25 +198,36 @@ async fn get_zones() {
             line.push_str(std::str::from_utf8(&buffer[..bytes_read]).expect("Failed to convert bytes to string"));
 
             if line.trim().contains("H01") {
-                let parts = line.trim().split(" ").collect::<Vec<&str>>();
-                let zone = Zone {
-                    zone_id: parts[1].to_string(),
-                    name: parts[2].to_string(),
-                    week_profile_id: parts[3].to_string(),
-                    temp_comfort_c: parts[4].to_string(),
-                    temp_eco_c: parts[5].to_string(),
-                    override_allowed: parts[6].to_string(),
-                    deprecated_override_id: parts[7].to_string(),
-                };
+                 
+                //IF two zones are returned in the same line, split them into two lines 
+                let sections = line.trim().split("\r").collect::<Vec<&str>>();
+                //Go through each section and create a zone object
+                for section in sections {
+                    let parts = section.trim().split(" ").collect::<Vec<&str>>();
+                    let zone = Zone {
+                        zone_id: parts[1].to_string(),
+                        name: parts[2].to_string(),
+                        week_profile_id: parts[3].to_string(),
+                        temp_comfort_c: parts[4].to_string(),
+                        temp_eco_c: parts[5].to_string(),
+                        override_allowed: parts[6].to_string(),
+                        deprecated_override_id: parts[7].to_string(),
+                    };
+
+                    tempzones.push(zone);
+                }
+                
 
                 
 
                 
+
+                
                 
                 
                 
 
-                tempzones.push(zone);
+                
             }
 
             if line.trim().contains("H05") {
@@ -254,13 +265,22 @@ async fn send_heartbeat() -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn update_zones(zones_input: Vec<Zone>, temperature: &str) -> Result<String,String>{
+async fn update_zones(zones_input: Vec<Zone>, departure: bool) -> Result<String,String>{
     if let Some(tcp_stream) = GLOBAL_TCP_STREAM_WRITER.get() {
-        let mut writer = tcp_stream.lock().await;  // this line has been changed
-        for zone in zones_input {
-            let payload = format!("U00 {} {} {} {} {} {} {}\r", zone.zone_id, zone.name, zone.week_profile_id, temperature, temperature, zone.override_allowed, zone.deprecated_override_id);
-            writer.write(payload.as_bytes()).await.map_err(|e| e.to_string())?;
+        let mut writer = tcp_stream.lock().await; 
+        if (departure == true){
+            for zone in zones_input {
+                let payload = format!("U00 {} {} {} {} {} {} {}\r", zone.zone_id, zone.name, zone.week_profile_id, "10", "10", zone.override_allowed, zone.deprecated_override_id);
+                writer.write(payload.as_bytes()).await.map_err(|e| e.to_string())?;
+            }
         }
+        else{
+            for zone in zones_input {
+                let payload = format!("U00 {} {} {} {} {} {} {}\r", zone.zone_id, zone.name, zone.week_profile_id, zone.temp_comfort_c, zone.temp_eco_c, zone.override_allowed, zone.deprecated_override_id);
+                writer.write(payload.as_bytes()).await.map_err(|e| e.to_string())?;
+            }
+        }  // this line has been changed
+        
     } else {
         return Err("Stream is not available".to_string());
     }
@@ -306,6 +326,7 @@ async fn read_line(app_state: AppState) {
                                 }
                                 
                             }
+                            
                             if line.trim().contains("V00") {
                                 let parts = line.trim().split(" ").collect::<Vec<&str>>();
                                 let zone = Zone {
@@ -319,7 +340,7 @@ async fn read_line(app_state: AppState) {
                                 };
 
                                 println!("Received: {:?}", zone);
-
+                                
                                 UpdateStaticZones(zone.clone()).await;
 
                                 if let Err(e) = window_guard.emit("zone", zone) {
@@ -338,6 +359,7 @@ async fn read_line(app_state: AppState) {
                 Err(e) => {
                     // An error occurred while trying to read from the stream
                     println!("Error reading from stream: {}", e);
+                    
                     // Decide how to handle the error, e.g., retry, wait, or shutdown
                     break;
                 }

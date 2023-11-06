@@ -5,7 +5,7 @@ import {listen, emit} from "@tauri-apps/api/event";
 import {IRoom, IZone} from "./interfaces.ts";
 import { createSignal, createEffect, For, createMemo, untrack } from 'solid-js';
 import './card.css'
-
+import toast, { Toaster } from 'solid-toast';
 import { appWindow } from '@tauri-apps/api/window';
 
 
@@ -15,6 +15,10 @@ import { appWindow } from '@tauri-apps/api/window';
 
 function App() {
 
+  const successToast = (name: string) => {
+    toast.success(`Successfully updated ${name}`);
+  }
+
   
   document?.getElementById('min-btn')?.addEventListener('click', () => appWindow.minimize())
 document?.getElementById('max-btn')?.addEventListener('click', () => appWindow.toggleMaximize())
@@ -23,12 +27,14 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
   const [zones, setZones] = createSignal<IZone[]>([])
   const [rooms , setRooms] = createSignal<IRoom[]>([])
   const [secondaryMenu, setSecondaryMenu] = createSignal<boolean>(false)
-  const [temperature, setTemperature] = createSignal<number>(22)
+  const [varmeovnTemp, setVarmeovnTemp] = createSignal<number>(18)
+  const [varmekabelTemp, setVarmeKabelTemp] = createSignal<number>(22)
   const [allElements, setAllElements] = createSignal<boolean>(true)
   const [selectedRooms, setSelectedRooms] = createSignal<IRoom[]>([])
   const [selectedZones, setSelectedZones] = createSignal<IZone[]>([])
   const [roomInputValue, setRoomInputValue] = createSignal<string>('')
   const [buttonsEnabled, setButtonsEnabled] = createSignal<boolean>(false)
+  const [loadingObjects, setLoadingObjects] = createSignal<any[]>([])
 
   let roomMemo = createMemo(() => rooms())
   let zoneMemo = createMemo(() => zones())
@@ -112,7 +118,24 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
       let index = oldzones.findIndex((z) => z.zone_id == zone.zone_id)
       let newzones = [...oldzones]
       newzones[index] = zone;
+      setSelectedZones([])
       setZones(newzones)
+      
+      
+      const loadingobject = loadingObjects().find((obj) => obj.name == zone.name)
+
+      if(loadingobject != undefined){
+        toast.success(`Successfully updated ${loadingobject.name}`, {
+          id: loadingobject.id,
+          unmountDelay: 1000,
+          
+        });
+        const newloadingobjects = loadingObjects().filter((obj) => obj != loadingobject)
+        setLoadingObjects(newloadingobjects)
+      }
+      else{
+        toast(`Zone ${zone.name} updated from another source`)
+      }
 
       
     });
@@ -165,7 +188,9 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
 
       
         const varmeovn: IZone[] = rooms().map((room) => room.varmeovn)
+        
         const varmekabel: IZone[] = rooms().map((room) => room.varmekabel)
+        
         //This array will be sent to the backend
         zonesToUpdate = [...varmeovn, ...varmekabel]
       
@@ -192,9 +217,53 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
       }
     }
 
+    if(!secondaryMenu()){
+//set the temperature
+      for (let i = 0; i < zonesToUpdate.length; i++) {
+            
+        if(zonesToUpdate[i].name.toLowerCase().includes("varmekabel")){
+          zonesToUpdate[i].temp_comfort_c = String(varmekabelTemp())
+          zonesToUpdate[i].temp_eco_c = String(varmekabelTemp())
+        }
+        else if(zonesToUpdate[i].name.toLowerCase().includes("varmeovn")){
+          zonesToUpdate[i].temp_comfort_c = String(varmeovnTemp())
+          zonesToUpdate[i].temp_eco_c = String(varmeovnTemp())
+        }
+      }
+    }
+    else{
+      //set the temperature
+      for (let i = 0; i < zonesToUpdate.length; i++) {
+            
+        zonesToUpdate[i].temp_comfort_c = String(varmekabelTemp())
+        zonesToUpdate[i].temp_eco_c = String(varmekabelTemp())
+        
+      }
+    }
+
+    zonesToUpdate.sort((a, b) => +a.zone_id - +b.zone_id)
+    
+    zonesToUpdate.forEach((zone) => {
+      const id = toast.loading(`Updating ${zone.name}`,{
+        style:{
+          width: '15vw',
+          "max-width": '15vw',
+          "min-width": '15vw'
+        }
+      });
+      const loadingobject = {
+        id: id,
+        name: zone.name
+      }
+
+      setLoadingObjects([...loadingObjects(), loadingobject])
+    })
+
+
+      
     invoke("update_zones", {
       zonesInput: zonesToUpdate,
-      temperature: arrivals ? temperature().toString() : "10"
+      departure: !arrivals,
     }).then(() => {
      
     }).catch((err) => {
@@ -247,7 +316,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
       const parts = line.split('\t');
       const roomnumber = parts[0].trim();
       //check if the first element in parts is a 3 digit number
-      if(roomnumber.match(/\d{3}/) && zoneMemo().find((zone) => zone.name.includes(roomnumber))){
+      if(roomnumber.match(/\d{3}/) && zoneMemo().find((zone) => zone.name.includes(roomnumber)) && roomnumber != "315"){
         const room: IRoom = {
           room_number: roomnumber,
           varmekabel: zoneMemo().find((zone) => zone.name.toLowerCase().includes("varmekabel") && zone.name.includes(roomnumber)) as IZone,
@@ -263,7 +332,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
         
       }
     });
-
+    setSelectedRooms([])
     setRooms(temprooms)
     console.info('Rooms collected')
 
@@ -278,6 +347,16 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
   return (
     
     <div class="container">
+      <div style={{
+        position: 'absolute',
+        top: '0',
+        right: '0',
+        display: 'flex',
+        "flex-direction": 'column',
+        "gap": '1rem',
+      }}>
+        <Toaster/>
+        </div>
       <div class='header'>
         <div class="controls">
           <button class={`menuButton ${!secondaryMenu() ? 'selected' : ''}`} onclick={() => {
@@ -335,11 +414,23 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
             "gap" : "1rem",
             display: 'flex',
           }}>
-            <label>Temperature: </label>
-            <input type="number" value={temperature()} onchange={(e) => {
-              setTemperature(parseInt((e.target as HTMLInputElement).value))
+            <label>{secondaryMenu() ? "Temperature": "Varmekabel: "} </label>
+            <input type="number" value={varmekabelTemp()} onchange={(e) => {
+              setVarmeKabelTemp(parseInt((e.target as HTMLInputElement).value))
             }} name="temperature" id="tempInput" />
             </div>
+            {secondaryMenu() ? null : 
+            <div style={{
+            "font-size": "1.5rem",
+            "gap" : "1rem",
+            display: 'flex',
+          }}>
+            <label>Varmeovn: </label>
+            <input type="number" value={varmeovnTemp()} onchange={(e) => {
+              setVarmeovnTemp(parseInt((e.target as HTMLInputElement).value))
+            }} name="temperature" id="tempInput" />
+            </div>}
+            
           <div style={{
             display: 'flex',
           }}class="allroomsdiv">
@@ -398,7 +489,6 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
 }
 
 function RoomCard(props: {room: IRoom, selected: boolean, selectable: boolean ,selectFunction: () => void}) {
- 
   return (
     <div class={`card room ${props.selected ? 'selected' : ''} ${props.selectable ? 'selectable' : ''} `} onclick={
       () => 
@@ -411,11 +501,11 @@ function RoomCard(props: {room: IRoom, selected: boolean, selectable: boolean ,s
       <h1>{props.room.room_number}</h1>
       <div class="tempdisplaycontainer">
         <h2>Varmekabel Temperature: </h2>
-        <h2 class='temperaturetext'>{props.room.varmekabel.temp_comfort_c}</h2>
+        <h2 class='temperaturetext'>{props.room.varmekabel && props.room.varmekabel.temp_comfort_c ? props.room.varmekabel.temp_comfort_c : "No temperature found"}</h2>
       </div>
       <div class="tempdisplaycontainer">
         <h2>Varmeovn Temperature: </h2>
-        <h2 class='temperaturetext'>{props.room.varmeovn.temp_comfort_c}</h2>
+        <h2 class='temperaturetext'>{props.room.varmeovn && props.room.varmeovn.temp_comfort_c ? props.room.varmeovn.temp_comfort_c : "No temperature found"}</h2>
       </div>
     </div>
   )
@@ -435,6 +525,7 @@ function ZoneCard(props: {zone: IZone, selectable: boolean, selected: boolean ,s
       <div class="tempdisplaycontainer">
         <h2>Temperature: </h2>
         <h2 class='temperaturetext'>{props.zone.temp_comfort_c}</h2>
+        
       </div>
       
     </div>

@@ -44,15 +44,13 @@
     border-radius: 10px;
     
     max-height: 10vh;
-    min-width: 7.5vw;
-    max-width: 7.5vw;
+    min-width: 10vw;
+    max-width: 10vw;
     justify-self: center;
     background-color: var(--secondary-color);
 }
 
-.temperaturetext{
-    animation: slideIn 0.5s ease-in-out;
-}
+
 
 .tempdisplaycontainer{
     display: flex;
@@ -62,26 +60,3 @@
 
 
 
-/*create a slide and fade out animation*/
-@keyframes slideOut {
-    from {
-        transform: translateY(0);
-        opacity: 1;
-    }
-    to {
-        transform: translateY(10%);
-        opacity: 0;
-    }
-}
-
-/*create a slide and fade in animation*/
-@keyframes slideIn {
-    from {
-        transform: translateY(10%);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
