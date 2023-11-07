@@ -13,3 +13,8 @@ export interface IRoom {
         varmeovn: IZone,
         varmekabel: IZone,
 }
+
+export interface ILoadingObject{
+        loadingID: string,
+        zone_id: string,
+}

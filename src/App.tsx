@@ -2,7 +2,7 @@
 import './App.css'
 import {invoke} from "@tauri-apps/api";
 import {listen, emit} from "@tauri-apps/api/event";
-import {IRoom, IZone} from "./interfaces.ts";
+import {IRoom, IZone, ILoadingObject} from "./interfaces.ts";
 import { createSignal, createEffect, For, createMemo, untrack } from 'solid-js';
 import './card.css'
 import toast, { Toaster } from 'solid-toast';
@@ -15,9 +15,7 @@ import { appWindow } from '@tauri-apps/api/window';
 
 function App() {
 
-  const successToast = (name: string) => {
-    toast.success(`Successfully updated ${name}`);
-  }
+
 
   
   document?.getElementById('min-btn')?.addEventListener('click', () => appWindow.minimize())
@@ -34,7 +32,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
   const [selectedZones, setSelectedZones] = createSignal<IZone[]>([])
   const [roomInputValue, setRoomInputValue] = createSignal<string>('')
   const [buttonsEnabled, setButtonsEnabled] = createSignal<boolean>(false)
-  const [loadingObjects, setLoadingObjects] = createSignal<any[]>([])
+  const [loadingObjects, setLoadingObjects] = createSignal<ILoadingObject[]>([])
 
   let roomMemo = createMemo(() => rooms())
   let zoneMemo = createMemo(() => zones())
@@ -46,7 +44,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
 
     createEffect(() => {
 
-      console.log("Menu Effect")
+     
       if(secondaryMenu()){
         setSelectedRooms([])
         setAllElements(false)
@@ -59,7 +57,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
 
     createEffect(() => {
       
-      console.log("Selected rooms effect")
+      
 
       if(secondaryMenu()){
         setButtonsEnabled(true)
@@ -77,11 +75,13 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
 
 
     createEffect(() => {
-      console.log("Real zones changed",zones())
-      console.log("Selected zones changed", selectedZones())
-      untrack(() => {
-        CollectRooms(null)
-      })
+      //If statement to use it as a dependency
+      if(zones().length > 0){
+        untrack(() => {
+          CollectRooms(null)
+        })
+      }
+      
     })
 
    
@@ -94,7 +94,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
     
 
     listen("zones", (event) => {
-      console.log("Zones: ", event.payload)
+      
       const tempzones = event.payload as IZone[]
       //sort zones by id
       tempzones.sort((a, b) => +a.zone_id - +b.zone_id)
@@ -107,6 +107,10 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
       });
     }).catch((err) => {
       console.log(err)
+    });
+
+    createEffect(() => {
+      console.log("Loading objects length: ",loadingObjects().length)
     });
 
     listen("zone", (event) => {
@@ -122,16 +126,18 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
       setZones(newzones)
       
       
-      const loadingobject = loadingObjects().find((obj) => obj.name == zone.name)
+      const loadingobject = loadingObjects().find((obj) => obj.zone_id == zone.zone_id)
+      
 
       if(loadingobject != undefined){
-        toast.success(`Successfully updated ${loadingobject.name}`, {
-          id: loadingobject.id,
+        toast.success(`Successfully updated ${zone.name}`, {
+          id: loadingobject.loadingID,
           unmountDelay: 1000,
           
         });
         const newloadingobjects = loadingObjects().filter((obj) => obj != loadingobject)
         setLoadingObjects(newloadingobjects)
+        
       }
       else{
         toast(`Zone ${zone.name} updated from another source`)
@@ -143,7 +149,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
   setInterval(sendheartbeat, 14000)
 
     function handleSelect(room: IRoom | null = null, zone: IZone | null = null){
-      //console.log('Handle select function')
+      
       if(room == null && zone == null) return;
       
       console.log({
@@ -152,7 +158,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
       })
 
       if(room != null && zone == null){
-        //console.log('Room select function')
+  
         
       if(selectedRooms().includes(room as IRoom)){
         //remove room from selectedRooms
@@ -165,7 +171,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
       }
     }
     else if(room == null && zone != null){
-      //console.log('Zone select function')
+      
       if(selectedZones().includes(zone as IZone)){
         //remove room from selectedRooms
         let newzones = selectedZones().filter((z) => z != zone)
@@ -251,9 +257,9 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
           "min-width": '15vw'
         }
       });
-      const loadingobject = {
-        id: id,
-        name: zone.name
+      const loadingobject: ILoadingObject = {
+        loadingID: id,
+        zone_id: zone.zone_id
       }
 
       setLoadingObjects([...loadingObjects(), loadingobject])
@@ -265,7 +271,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
       zonesInput: zonesToUpdate,
       departure: !arrivals,
     }).then(() => {
-     
+      
     }).catch((err) => {
       console.log(err)
     }
@@ -298,7 +304,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
     if(!textinput.startsWith('Rom #') && !textinput.startsWith('Rum #')){
       
       setRooms([])
-      //console.log('Not a room log')
+    
       return;
     }
     
@@ -322,10 +328,10 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
           varmekabel: zoneMemo().find((zone) => zone.name.toLowerCase().includes("varmekabel") && zone.name.includes(roomnumber)) as IZone,
           varmeovn: zoneMemo().find((zone) => zone.name.toLowerCase().includes("varmeovn") && zone.name.includes(roomnumber)) as IZone
         }
-        console.log(room)
+        
 
         if(!roomMemo().includes(room)){
-          console.log(`Room ${room.room_number} added`)
+          
           temprooms.push(room)
         }
 
@@ -334,7 +340,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
     });
     setSelectedRooms([])
     setRooms(temprooms)
-    console.info('Rooms collected')
+   
 
     
   }
@@ -376,7 +382,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
             }
           }}>Zoner</button>
           <button class='menuButton' onclick={() => {
-            console.log("Buttons enabled: ", buttonsEnabled())
+            
             if(!buttonsEnabled()){
               alert("There are no rooms to update??")
               return;
@@ -390,7 +396,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
             }
             UpdateZones(true)}}>Arrivals</button>
           <button class='menuButton' onclick={() => {
-            console.log("Buttons enabled: ", buttonsEnabled())
+           
             if(!buttonsEnabled()){
               alert("There are no rooms to update??")
               return;
@@ -406,7 +412,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
           </div>
           
           <div class="title">
-          <h4>Markos ultimata temperatur grejsimojs</h4>
+          <h4>Live Laugh Love ~ Sun Tzu, Art of War 🙏</h4>
         </div>
         <div class="right">
           <div style={{
@@ -454,7 +460,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
             {(room) => (
               <RoomCard room={room} selectable={!allElements()} selected={selectedRooms().includes(room) ? true : false } selectFunction={() => 
                  {
-                  console.log('selecting room')
+                 
                   handleSelect(room, null)
                  }
                 
@@ -472,7 +478,7 @@ document?.getElementById('close-btn')?.addEventListener('click', () => appWindow
           {(zone) => (
             <ZoneCard zone={zone} selectable={!allElements()} selected={selectedZones().includes(zone)} selectFunction={() => 
               {
-                console.log('selecting zone')
+                
                 handleSelect(null, zone)
               }
             }/>

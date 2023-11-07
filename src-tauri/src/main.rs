@@ -1,7 +1,7 @@
-/*#![cfg_attr(
+#![cfg_attr(
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
-)]*/
+)]
 
 use std::panic::panic_any;
 use once_cell::sync::Lazy;
@@ -342,6 +342,9 @@ async fn read_line(app_state: AppState) {
                                 println!("Received: {:?}", zone);
                                 
                                 UpdateStaticZones(zone.clone()).await;
+
+                                //wait for 100ms to make sure the zones are updated before sending them to the frontend
+                                //std::thread::sleep(std::time::Duration::from_millis(250));
 
                                 if let Err(e) = window_guard.emit("zone", zone) {
                                     println!("Error emitting event: {}", e);
